@@ -43,7 +43,7 @@ class Block {
             hash = cryptoHash(timestamp, lastHash, data, nonce, difficulty);
             // note  add hexto binary to see the binary form
 
-        } while (hexToBinary(hash).substring(0, difficulty) !== '0'.repeat(difficulty))
+        } while (hexToBinary(hash).substring(0, difficulty) !== '0'.repeat(difficulty));
         
         return new this({
             timestamp,

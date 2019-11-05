@@ -1,5 +1,5 @@
 // install the relevent  pubnub module
-const PubNub = require('pubnub')
+const PubNub = require('pubnub');
 
 // store pubnum keys
 const credentials = {
@@ -31,8 +31,6 @@ class PubSub {
 
         // this.subscribeToChannels();
 
-
-       
         // listen for message events in the network
         // take object as arbument with keys that we can handle
         
@@ -85,10 +83,21 @@ class PubSub {
      // to actually publish, use the pub sub in-built method. 
 
     publish({ channel, message }) {
-        // there is an unsubscribe function in pubnub
-        // but it doesn't have a callback that fires after success
-        // therefore, redundant publishes to the same local subscriber will be accepted as noisy no-ops
-        this.pubnub.publish({ message, channel });
+        //unsubscribe temporarily so you don't send messages to yourself
+
+        //EXTRA if using redis but pubnub has unsubscribe naturally
+        // this.pubnub.unsubscribe(channel, () => {
+
+            // there is an unsubscribe function in pubnub
+            // but it doesn't have a callback that fires after success
+            // therefore, redundant publishes to the same local subscriber will be accepted as noisy no-ops
+            this.pubnub.publish({ message, channel });
+
+            // , () => {
+            //     this.pubnub.subscribe(channel);
+            // });
+        // })
+        
     }
 
     // allow us to share blockchains on the network
