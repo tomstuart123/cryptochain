@@ -1,5 +1,5 @@
 const Block = require('./block');
-const cryptoHash = require('./crypto-hash');
+const cryptoHash = require('../util/crypto-hash');
 
 
 class Blockchain {
@@ -68,8 +68,6 @@ class Blockchain {
                 return false
             }
 
-            console.log(lastDifficulty)
-            console.log(difficulty)
             // make sure the difficulty can't be raised too high or lowered too low
             if (Math.abs(lastDifficulty - difficulty) > 1)
                 return false;

@@ -1,8 +1,8 @@
-const Blockchain = require('./blockchain');
+const Blockchain = require('.');
 const Block = require('./block');
-const { GENESIS_DATA } = require('./config'); 
+const { GENESIS_DATA } = require('../config'); 
 //connects to config.js
-const cryptoHash = require('./crypto-hash');
+const cryptoHash = require('../util/crypto-hash');
 
 
 describe('Blockchain', () => {

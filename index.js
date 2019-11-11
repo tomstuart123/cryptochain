@@ -4,7 +4,7 @@ const express = require('express');
 // pull installed request function for get request
 const request = require('request')
 const Blockchain = require('./blockchain');
-const PubSub = require('./pubsub')
+const PubSub = require('./app/pubsub')
 
 // run the express function and store it in the local app
 const app = express();
