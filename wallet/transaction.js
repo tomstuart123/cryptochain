@@ -1,4 +1,5 @@
 const uuid = require('uuid/v1')
+const { verifySignature } = require('../util');
 //uuid is timestamp based so gives unique time for each transaction
 
 class Transaction { 
@@ -29,6 +30,32 @@ class Transaction {
             address: senderWallet.publicKey,
             signature: senderWallet.sign(outputMap),
         };
+    }
+
+    static validTransaction(transaction) {
+        // pull apart the transaction with deconstructor. Also next deconstructor for th einput in the transaction.
+        // this gives us all three fields and output map
+        const { input: { address, amount, signature }, outputMap } = transaction;
+        
+        // check if input amount is the same as values in the output map
+
+        // get values from outputmap
+        const outputTotal = Object.values(outputMap).reduce((total, outputAmount) => total + outputAmount)
+        // above used a reduce function that reduces the array to a single value. in result we add output amount to the total
+
+        // run check now
+        if (amount !== outputTotal) {
+            console.error(`Invalid transaction from ${address}`);
+            return false;
+        }
+
+        if (!verifySignature({ publicKey: address, data: outputMap, signature})) {
+            console.error(`Invalid transaction from ${signature}`)
+            return false;
+        }
+
+        return true;
+
     }
 }
 

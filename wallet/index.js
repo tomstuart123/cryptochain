@@ -1,7 +1,10 @@
+const Transaction = require('./transaction')
 const { STARTING_BALANCE } = require('../config')
-const { ec } = require('../util');
+const { ec, cryptoHash } = require('../util');
 
-const cryptoHash = require('../util/crypto-hash')
+
+// removed as we are getting it from util
+// const cryptoHash = require('../util/crypto-hash')
 
 
 
@@ -27,6 +30,14 @@ class Wallet {
         return this.keyPair.sign(cryptoHash(data))
         // why cryptohash - this works best if data is in the form of a single cryptographic hash
 
+    }
+
+    createTransaction({ recipient, amount }) {
+        if (amount > this.balance) {
+            throw new Error('Amount exceeds balance')
+        }
+        return new Transaction({ senderWallet: this, recipient, amount })
+        
     }
 };
 

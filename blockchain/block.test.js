@@ -3,7 +3,7 @@ const hexToBinary = require('hex-to-binary');
 const Block = require('./block'); //links this to block.js (js not needed by node)
 const { GENESIS_DATA, MINE_RATE } = require('../config') //connects to config.js
 
-const cryptoHash = require('../util/crypto-hash') // connect crypto-hash function
+const { cryptoHash } = require('../util') // connect crypto-hash function
 
 describe('Block', () => { 
     // set 2 seconds

@@ -23,6 +23,6 @@ const verifySignature = ({ publicKey, data, signature}) => {
 
 // export the ec class to other files
 
-module.exports = { ec, verifySignature };
+module.exports = { ec, verifySignature, cryptoHash };
 
 //methods in ec class are key pair generator
