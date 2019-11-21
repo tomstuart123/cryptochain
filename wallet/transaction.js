@@ -32,6 +32,29 @@ class Transaction {
         };
     }
 
+    // create a function that allows you to update the transaction
+    // 
+    update({ senderWallet, recipient, amount }) {
+
+        if (amount > this.outputMap[senderWallet.publicKey]) {
+            throw new Error('Amount exceeds balance');
+        } 
+        
+        if(!this.outputMap[recipient]) {
+            this.outputMap[recipient] = amount;
+        } else {
+            this.outputMap[recipient] = this.outputMap[recipient] + amount;
+        }
+
+        // designate an amount to the next recipient
+             // this.outputMap[recipient] = amount;
+        // we need to subtract new amount from sender public key
+        this.outputMap[senderWallet.publicKey] = this.outputMap[senderWallet.publicKey] - amount;
+
+        // make sure signature can be resigned. need a new signature
+        this.input = this.createInput({ senderWallet, outputMap: this.outputMap });
+    }
+
     static validTransaction(transaction) {
         // pull apart the transaction with deconstructor. Also next deconstructor for th einput in the transaction.
         // this gives us all three fields and output map

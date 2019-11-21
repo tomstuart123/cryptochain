@@ -5,6 +5,9 @@ const { verifySignature } = require('../util');
 describe('Transaction', () => {
     let transaction, senderWallet, recipient, amount;
     
+
+
+
     //only wallets should be able to create transactions
 
     beforeEach(() => {
@@ -113,5 +116,76 @@ describe('Transaction', () => {
         })
     });
 
-    
+    // update function will add new amount for new recipient but in existing transaction output map
+    describe('update()', () => {
+        let originalSignature, originalSenderOutput, nextRecipient, nextAmount;
+
+        describe(' and the amount is invalid', () => {
+            it('throws an error', () => {
+                expect(() => {
+                    transaction.update({
+                        senderWallet, receipient: 'foo', amount: 999999
+                    })
+                }).toThrow('Amount exceeds balance')
+                
+            })
+        })
+
+        describe('and the amount is valid', () => { 
+            beforeEach(() => {
+                originalSignature = transaction.input.signature;
+                originalSenderOutput = transaction.outputMap[senderWallet.publicKey];
+                nextRecipient = 'next-recipient';
+                nextAmount = 50;
+
+                // update function receives senderWallet, recipient and amount
+                transaction.update({ senderWallet, recipient: nextRecipient, amount: nextAmount })
+            })
+
+            it('outputs the amount to the next recipient', () => {
+                expect(transaction.outputMap[nextRecipient]).toEqual(nextAmount);
+            });
+
+            // new amount needs to take money from sender wallet
+
+            it('subtracts amount from original sender wallet output amount (or balnace)', () => {
+                expect(transaction.outputMap[senderWallet.publicKey]).toEqual(originalSenderOutput - nextAmount);
+            })
+
+            it('maintains a total output value that matches the input amount', () => {
+                // use reduce to get total from outputMap then add it to the total
+                expect(
+                    Object.values(transaction.outputMap)
+                        .reduce((total, outputAmount) => total + outputAmount)
+                ).toEqual(transaction.input.amount);
+            });
+
+            it('re-signs the transaction', () => {
+                expect(transaction.input.signature).not.toEqual(originalSignature);
+            })
+
+            describe('and another update for the same receipient', () => {
+                let addedAmount;
+
+                beforeEach(() => {
+                    addedAmount = 80;
+                    transaction.update({
+                        senderWallet, recipient: nextRecipient, amount: addedAmount
+                    })
+                })
+
+                it('adds to the recipient amount', () => {
+                    expect(transaction.outputMap[nextRecipient])
+                    .toEqual(nextAmount + addedAmount)
+                })
+
+                it('subtracts the amount from the original sender output amount', () => {
+                    expect(transaction.outputMap[senderWallet.publicKey])
+                        .toEqual(originalSenderOutput - nextAmount - addedAmount)
+                })
+
+            })
+        });
+        
+    })
 });
