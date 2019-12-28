@@ -6,12 +6,23 @@ const request = require('request')
 const Blockchain = require('./blockchain');
 const PubSub = require('./app/pubsub')
 
+// set transaction pool class from transaction pool file
+const TransactionPool = require('./wallet/transaction-pool');
+const Wallet = require('./wallet');
+// pull mine transaction
+const TransactionMiner = require('./app/transaction-miner')
+
 // run the express function and store it in the local app
 const app = express();
 // get a new blockchain module
 const blockchain = new Blockchain();
+
+const transactionPool = new TransactionPool();
+const wallet = new Wallet();
 // we need to create instant of pubsub class here to replace get and push
-const pubsub = new PubSub({ blockchain });
+const pubsub = new PubSub({ blockchain, transactionPool, wallet });
+// create this new transactionminer class
+const transactionMiner = new TransactionMiner({ blockchain, transactionPool, wallet, pubsub})
 
 //distinguish defualt port at local host 3000
 const DEFAULT_PORT = 3000;
@@ -38,6 +49,7 @@ app.use(bodyParser.json());
 // from express this exists. Makes endpoint the first argument. Also has a call back function with req and res object
 // receive data from user in json format. Json will provide details of new block. 
 // lets set req field for body of block.
+// add api to add generate block to blockchain
 app.post('/api/mine', (req, res) => {
     // lets pull the data from request body of info
     const { data } = req.body;
@@ -53,8 +65,67 @@ app.post('/api/mine', (req, res) => {
 
 });
 
+// set api request to officially create transaction using their applications wallets. can specify the recipient and the amount body. this will all get put in the transaction pool api and then get a JSON response
+    // endpoint is transact with req and res and callback
+    // this then pulls the amount and recipient from the request body
+    // then create a transaction via local wallets method of create transaction that creates recipient and amount
+app.post('/api/transact', (req, res) => {
+    const {amount, recipient } = req.body;
+
+    // set transaction to results of existing transaction. this checks that any transactions inputAddress of this wallet public key. if it does, then its update the transaction
+    let transaction = transactionPool.existingTransaction({inputAddress: wallet.publicKey});
+    try {
+        // create if around our create transaction in case tranascation already exists. if it does, then update it to the new details of the sender. If it doesn't create a new one
+        if (transaction) {
+            transaction.update({ senderWallet: wallet, recipient, amount })
+        } else {
+            transaction = wallet.createTransaction({ 
+                recipient, 
+                amount, 
+                chain: blockchain.chain 
+            })
+
+        }
+
+    } catch(error) {
+        return res.status(400).json({ type: 'error', message: error.message })
+    }
+    
+    transactionPool.setTransaction(transaction);
+
+    // they won't get the local wallet, but they will get transaction ID in updated transsaction pool
+    pubsub.broadcastTransaction(transaction);
+    // create response from 
+    res.json({ type: 'success', transaction})
+})
+
+app.get('/api/transaction-pool-map', (req, res) => {
+    res.json(transactionPool.transactionMap);
+})
+
+// add api to call method to add blcok to blockchain
+app.get('/api/mine-transactions', (req, res) => {
+    transactionMiner.mineTransaction();
+    // direct people to specific blocks request
+    res.redirect('/api/blocks')
+})
+
+app.get('/api/wallet-info', (req, res) => {
+
+    const address = wallet.publicKey;
+    // what this api request to return the request and the balance set in the wallet.indexjs
+    res.json({
+        address: address,
+        balance:  Wallet.calculateBalance({ 
+            chain: blockchain.chain, 
+            address: address
+        })
+
+    })
+})
+
 // sync peers to the root blockchain called at the top
-const syncChains = () => {
+const syncWithRootState = () => {
     // use installed request to get root node api blocks for historical data
     request({ url: `${ROOT_NODE_ADDRESS}/api/blocks` }, (error, response, body) => {
         // only want this to fire when request completes so add error parameter above.
@@ -68,8 +139,17 @@ const syncChains = () => {
             const rootChain = JSON.parse(body);
 
             // then replace new chain with historic chain
-            console.log('replace chain on a sync with', rootChain)
+            console.log('replace chain on a sync with', rootChain);
             blockchain.replaceChain(rootChain);
+        }
+    })
+    // second step get request to sync root transaction mpa with the peer created
+    request({ url: `${ROOT_NODE_ADDRESS}/api/transaction-pool-map` }, (error, response, body) => {
+        if (!error && response.statusCode === 200) {
+            const rootTransactionPoolMap = JSON.parse(body);
+            console.log('replace transaction pool map on sync with', rootTransactionPoolMap)
+            // set map everytime it syncs. Create this in 
+            transactionPool.setMap(rootTransactionPoolMap)
         }
     })
 }
@@ -101,11 +181,12 @@ console.log(PEER_PORT);
 // start the request application by listening for requests until its told to stop
 app.listen(PORT, () => { 
     console.log(`listening at localhost:${PORT}`);
+    console.log(`worked at ${PORT}`)
     // run sync chains we created above to make sure new peers are updated to historic blockchian
 
     //remove redundant messages between root and itself
     if (PORT !== DEFAULT_PORT) {
-        syncChains();
+        syncWithRootState();
     }
 
 });

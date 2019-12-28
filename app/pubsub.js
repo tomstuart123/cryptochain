@@ -12,17 +12,21 @@ const credentials = {
 const CHANNELS = {
     TEST: 'TEST',
     // add blockchain channel so that each user has a duty to update blockchain when any changes
-    BLOCKCHAIN: 'BLOCKCHAIN'
+    BLOCKCHAIN: 'BLOCKCHAIN',
+    TRANSACTION: 'TRANSACTION'
 };
 
 // pull the pubnub class installed above and add our credentials
 // this enables us to interact with pub sub services based on channels
 class PubSub {
-    constructor( { blockchain } ) {
+    constructor( { blockchain, transactionPool, wallet } ) {
         // beef up pubsub class. Now every pubsub instance will have a local blockchain with it
         this.blockchain = blockchain;
+        this.transactionPool = transactionPool;
 
         this.pubnub = new PubNub(credentials);
+        this.wallet = wallet;
+
 
         // use surbscriber method from pubnub
         // to stop us continually going into channels object to pull data, lets programmatically pull this with object.values(channles). This pulls all the values from channels when needed
@@ -43,6 +47,7 @@ class PubSub {
         this.publish({
             channel: CHANNELS.BLOCKCHAIN,
             message: JSON.stringify(this.blockchain.chain)
+
         });
     }
 
@@ -68,10 +73,27 @@ class PubSub {
                 // pubsub needs to handle blockchain messages. Update it so it can replace a chain when it receives a blockchain message on the blockchain channel
                 const parsedMessage = JSON.parse(message);
 
-                // only replace a chain if the parsed message is a valid chain & Longer
-                if (channel === CHANNELS.BLOCKCHAIN) {
-                  this.blockchain.replaceChain(parsedMessage);
+                switch(channel) {
+                    case CHANNELS.BLOCKCHAIN:
+                        this.blockchain.replaceChain(parsedMessage, true, () => {
+                            // clear the transaction pool when replaced to ensure no doublespend
+                            this.transactionPool.clearBlockchainTransactions({
+                                chain:parsedMessage
+                            });
+                        });
+                        break;
+                    case CHANNELS.TRANSACTION:
+                        if (!this.transactionPool.existingTransaction({
+                            inputAddress: this.wallet.publicKey
+                        })) {
+                            this.transactionPool.setTransaction(parsedMessage);
+                        }
+                        break;
+                    default:
+                        return;
                 }
+
+                // only replace a chain if the parsed message is a valid chain & Longer
 
             }
         }
@@ -115,6 +137,12 @@ class PubSub {
             channel: CHANNELS.BLOCKCHAIN,
             message: JSON.stringify(this.blockchain.chain)
         });
+    }
+    broadcastTransaction(transaction) {
+        this.publish({
+            channel: CHANNELS.TRANSACTION,
+            message: JSON.stringify(transaction)
+        })
     }
 }
 

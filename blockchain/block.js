@@ -3,7 +3,7 @@ const { GENESIS_DATA, MINE_RATE } = require('../config');
 //connects to config.js
 const { cryptoHash } = require('../util');
 // connect crypto-hash function
-
+ 
 class Block {
     constructor({ timestamp, lastHash, hash, data, nonce, difficulty }) {
         this.timestamp = timestamp;

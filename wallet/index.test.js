@@ -1,9 +1,11 @@
 // create wallet class we will create
 const Wallet = require('./index');
 const Transaction = require('./transaction');
-
 //pull verify signature in util directory
 const { verifySignature } = require('../util');
+
+const Blockchain = require('../blockchain')
+const { STARTING_BALANCE } = require('../config')
 
 describe('Wallet', () => {
     let wallet;
@@ -75,6 +77,141 @@ describe('Wallet', () => {
                 expect(transaction.outputMap[recipient]).toEqual(amount);
             })
         })
+
+        describe('and a chain is passed', () => {
+            it('calls `Wallet.calculateBalance`', () => {
+                const calculateBalanceMock = jest.fn();
+
+                const originalCalculateBalance = Wallet.calculateBalance;
+
+                Wallet.calculateBalance = calculateBalanceMock;
+
+                wallet.createTransaction({
+                    recipient: 'foo',
+                    amount: 10,
+                    chain: new Blockchain().chain
+                });
+
+                expect(calculateBalanceMock).toHaveBeenCalled();
+
+                Wallet.calculateBalance = originalCalculateBalance;
+            });
+        });
     })
+
+    describe('calculateBalance()', () => {
+        let blockchain;
+
+        beforeEach(() => {
+            blockchain = new Blockchain();
+        })
+
+        describe('and there are no outputs for the wallet', () => {
+            it('returns the `STARTING_BALANCE`', () => {
+                expect(
+                    Wallet.calculateBalance({
+                        chain: blockchain.chain,
+                        address: wallet.publicKey,
+
+                    })
+                ).toEqual(STARTING_BALANCE)
+
+               
+            })
+        })
+
+        describe('and there are outputs for the wallet', () => {
+            let transactionOne, transactionTwo;
+
+            beforeEach(() => {
+                transactionOne = new Wallet().createTransaction({
+                    recipient: wallet.publicKey,
+                    amount: 50
+                })
+                transactionTwo = new Wallet().createTransaction({
+                    recipient: wallet.publicKey,
+                    amount: 60
+                })
+                blockchain.addBlock({ data: [transactionOne, transactionTwo] })
+
+            })
+
+            it('adds the sum of all outputs to the wallet balance', () => {
+                expect(
+                    Wallet.calculateBalance({
+                        chain: blockchain.chain,
+                        address: wallet.publicKey,
+                    })
+                ).toEqual(
+                    STARTING_BALANCE + transactionOne.outputMap[wallet.publicKey] + transactionTwo.outputMap[wallet.publicKey]
+                )
+
+            })
+
+            describe('and the wallet has made a transaction', () => {
+                let recentTransaction;
+                // before each test, make sure wallet makes transaction
+                beforeEach(() => {
+                    recentTransaction = wallet.createTransaction({
+                        recipient: 'foo-address',
+                        amount: 30,
+                    })
+                    blockchain.addBlock({
+                        data: [recentTransaction]
+                    })
+                })
+                it('returns the output amount of the recent transaction', () => {
+                    // absolute blanaca should be blandce at end of transasction
+                    expect(
+                        Wallet.calculateBalance({
+                            chain: blockchain.chain,
+                            address: wallet.publicKey,
+                        })
+                    ).toEqual(recentTransaction.outputMap[wallet.publicKey]);
+                    
+                })
+
+                describe('and there are outputs next to and after the recent transaction', () => {
+                    let sameBlockTransaction, nextBlockTransaction;
+                    // cover transactions in the same block and transacctions after in the chain
+                    beforeEach(() => {
+                        recentTransaction = wallet.createTransaction({
+                            recipient: 'later-foo-address',
+                            amount: 60
+                        });
+                        // same blocks are likely to be i) miner rewards.
+                        // lets ensure the balance includes the miner reward + transaction difference
+                        sameBlockTransaction = Transaction.rewardTransaction({ minerWallet: wallet })
+
+                        blockchain.addBlock({ data: [recentTransaction, sameBlockTransaction ]})
+
+                        nextBlockTransaction = new Wallet().createTransaction({
+                            recipient: wallet.publicKey,
+                            amount: 75
+                        });
+                        // then at end of loop, add block of the next transaction. This gives us a set up of a transaction, a miner reward transaction and a block further down
+                        blockchain.addBlock({data: [nextBlockTransaction ]})
+
+                    });
+
+                    it('includes the output amounts in the returned balance', () => {
+                        expect (
+                            Wallet.calculateBalance({
+                                chain: blockchain.chain,
+                                address: wallet.publicKey
+                            })
+                        ).toEqual(
+                            // makes sure balance is the same as the recent transaction + (miner reward + transaction) + later transactions
+                            recentTransaction.outputMap[wallet.publicKey] + sameBlockTransaction.outputMap[wallet.publicKey] + nextBlockTransaction.outputMap[wallet.publicKey]
+                        )
+                    })
+                });
+
+            });
+
+        });
+
+        
+    });
 
 });
