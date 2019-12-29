@@ -1,8 +1,9 @@
 // import express function
-const bodyParser = require('body-parser')
+const bodyParser = require('body-parser');
 const express = require('express');
 // pull installed request function for get request
-const request = require('request')
+const request = require('request');
+const path = require('path');
 const Blockchain = require('./blockchain');
 const PubSub = require('./app/pubsub')
 
@@ -12,7 +13,7 @@ const Wallet = require('./wallet');
 // pull mine transaction
 const TransactionMiner = require('./app/transaction-miner')
 
-// run the express function and store it in the local app
+// run the express function (playing the role of an API) and store it in the local app. Allows HTTP requests --> JSON but we also include giving it HTML
 const app = express();
 // get a new blockchain module
 const blockchain = new Blockchain();
@@ -29,6 +30,10 @@ const DEFAULT_PORT = 3000;
 
 // define root blockchain address for new blockchains to pull historic data from. This way each new connection understands where the blockchain is
 const ROOT_NODE_ADDRESS = `http://localhost:${DEFAULT_PORT}`
+
+// app.use(bodyParser.json());
+
+app.use(express.static(path.join(__dirname, 'client/dist')))
 
 //test code with set timeout to give everything time to register to subscribe chains etc 
 // setTimeout(() => pubsub.broadcastChain(), 1000);
@@ -123,6 +128,13 @@ app.get('/api/wallet-info', (req, res) => {
 
     })
 })
+// backend will serve front end application at any endpoint not defined above
+app.get('*', (req, res) => {
+    // send a file from project to requester
+    // get current dirctory with __dirname
+    res.sendFile(path.join(__dirname, 'client/dist/index.html'));
+        
+})
 
 // sync peers to the root blockchain called at the top
 const syncWithRootState = () => {
@@ -152,6 +164,50 @@ const syncWithRootState = () => {
             transactionPool.setMap(rootTransactionPoolMap)
         }
     })
+}
+
+// fake wallet for testing
+const walletFoo = new Wallet();
+const walletBar = new Wallet();
+
+// function to allow fake transactions
+const generateWalletTransaction = ({wallet, recipient, amount }) => {
+    const transaction = wallet.createTransaction({
+        recipient, amount, chain: blockchain.chain
+    })
+
+    transactionPool.setTransaction(transaction)
+}
+
+const walletAction = () => generateWalletTransaction({
+    // transaction from main wallet to foo wallet
+    wallet, recipient: walletFoo.publicKey, amount: 5
+})
+
+const walletFooAction = () => generateWalletTransaction({
+    // transaction from foo wallet to bar wallet
+    wallet: walletFoo, recipient: walletBar.publicKey, amount: 10
+})
+
+const walletBarAction = () => generateWalletTransaction({
+    // transaction from main wallet to another wallet
+    wallet: walletBar, recipient: wallet.publicKey, amount: 15
+})
+
+// run loop to automate transactions
+for (let i=0; i<10; i++) {
+    if (i%3 === 0) {
+        walletAction();
+        walletFooAction();
+    } else if (i%3 ===1) {
+        walletAction();
+        walletBarAction();
+    } else {
+        walletFooAction();
+        walletBarAction();
+    }
+
+    transactionMiner.mineTransaction();
 }
 
 
