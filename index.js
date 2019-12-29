@@ -13,6 +13,8 @@ const Wallet = require('./wallet');
 // pull mine transaction
 const TransactionMiner = require('./app/transaction-miner')
 
+const isDevelopment = process.env.ENV === 'development';
+
 // run the express function (playing the role of an API) and store it in the local app. Allows HTTP requests --> JSON but we also include giving it HTML
 const app = express();
 // get a new blockchain module
@@ -166,49 +168,54 @@ const syncWithRootState = () => {
     })
 }
 
-// fake wallet for testing
-const walletFoo = new Wallet();
-const walletBar = new Wallet();
+// testing data only in dev environment
+if (isDevelopment) {
+    // fake wallet for testing
+    const walletFoo = new Wallet();
+    const walletBar = new Wallet();
 
-// function to allow fake transactions
-const generateWalletTransaction = ({wallet, recipient, amount }) => {
-    const transaction = wallet.createTransaction({
-        recipient, amount, chain: blockchain.chain
-    })
+    // function to allow fake transactions
+    const generateWalletTransaction = ({ wallet, recipient, amount }) => {
+        const transaction = wallet.createTransaction({
+            recipient, amount, chain: blockchain.chain
+        })
 
-    transactionPool.setTransaction(transaction)
-}
-
-const walletAction = () => generateWalletTransaction({
-    // transaction from main wallet to foo wallet
-    wallet, recipient: walletFoo.publicKey, amount: 5
-})
-
-const walletFooAction = () => generateWalletTransaction({
-    // transaction from foo wallet to bar wallet
-    wallet: walletFoo, recipient: walletBar.publicKey, amount: 10
-})
-
-const walletBarAction = () => generateWalletTransaction({
-    // transaction from main wallet to another wallet
-    wallet: walletBar, recipient: wallet.publicKey, amount: 15
-})
-
-// run loop to automate transactions
-for (let i=0; i<10; i++) {
-    if (i%3 === 0) {
-        walletAction();
-        walletFooAction();
-    } else if (i%3 ===1) {
-        walletAction();
-        walletBarAction();
-    } else {
-        walletFooAction();
-        walletBarAction();
+        transactionPool.setTransaction(transaction)
     }
 
-    transactionMiner.mineTransaction();
+    const walletAction = () => generateWalletTransaction({
+        // transaction from main wallet to foo wallet
+        wallet, recipient: walletFoo.publicKey, amount: 5
+    })
+
+    const walletFooAction = () => generateWalletTransaction({
+        // transaction from foo wallet to bar wallet
+        wallet: walletFoo, recipient: walletBar.publicKey, amount: 10
+    })
+
+    const walletBarAction = () => generateWalletTransaction({
+        // transaction from main wallet to another wallet
+        wallet: walletBar, recipient: wallet.publicKey, amount: 15
+    })
+
+    // run loop to automate transactions
+    for (let i = 0; i < 10; i++) {
+        if (i % 3 === 0) {
+            walletAction();
+            walletFooAction();
+        } else if (i % 3 === 1) {
+            walletAction();
+            walletBarAction();
+        } else {
+            walletFooAction();
+            walletBarAction();
+        }
+
+        transactionMiner.mineTransaction();
+    }
 }
+
+
 
 
 // kick off different ports based on package.json if its true. i.e. is the generate peer port set to true
@@ -228,7 +235,7 @@ if (process.env.GENERATE_PEER_PORT === 'true') {
 // above parameters. Ports are like addresses to reach running processes on hosted domain name. 
 
 // if PEER PORT, then use that. If undefined, DEFAULT PORT at 3000 
-const PORT = PEER_PORT || DEFAULT_PORT;
+const PORT = process.env.PORT || PEER_PORT || DEFAULT_PORT;
 
 console.log(PORT);
 console.log(DEFAULT_PORT);
