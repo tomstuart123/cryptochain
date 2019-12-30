@@ -53,6 +53,47 @@ app.get('/api/blocks', (req, res) => {
 
 app.use(bodyParser.json());
 
+app.get('/api/blocks/length', (req, res) => {
+    // get the length and work out for the front end
+    res.json(blockchain.chain.length);
+
+})
+
+app.get('/api/blocks/:id', (req, res) => {
+    // based on id, we will send blocks. if 1 we give them 0-5, if two 5-10
+    const {id} = req.params;
+
+    const { length } = blockchain.chain;
+
+    // get a copy of chain and reverse it. slice with no parameters makes a copy
+    const blocksReversed = blockchain.chain.slice().reverse();
+    // allows us to take the index of 0-5 or 5-10 or etc.
+
+    let startIndex = (id - 1) * 5;
+    let endIndex = id * 5;
+
+    startIndex = startIndex < length ? startIndex : length;
+    endIndex = endIndex < length ? endIndex : length;
+    // then use slice to take parts based on indexes
+    res.json(blocksReversed.slice(startIndex, endIndex));
+
+})
+
+app.get('/api/blocks/:id', (req, res) => {
+    const { id } = req.params;
+    const { length } = blockchain.chain;
+
+    const blocksReversed = blockchain.chain.slice().reverse();
+
+    let startIndex = (id - 1) * 5;
+    let endIndex = id * 5;
+
+    startIndex = startIndex < length ? startIndex : length;
+    endIndex = endIndex < length ? endIndex : length;
+
+    res.json(blocksReversed.slice(startIndex, endIndex));
+});
+
 // from express this exists. Makes endpoint the first argument. Also has a call back function with req and res object
 // receive data from user in json format. Json will provide details of new block. 
 // lets set req field for body of block.
@@ -130,6 +171,20 @@ app.get('/api/wallet-info', (req, res) => {
 
     })
 })
+
+app.get('/api/known-addresses', (req, res) => {
+    const addressMap = {};
+
+    for (let block of blockchain.chain) {
+        for (let transaction of block.data) {
+            const recipient = Object.keys(transaction.outputMap);
+
+            recipient.forEach(recipient => addressMap[recipient] = recipient);
+        }
+    }
+
+    res.json(Object.keys(addressMap));
+});
 // backend will serve front end application at any endpoint not defined above
 app.get('*', (req, res) => {
     // send a file from project to requester
@@ -199,7 +254,7 @@ if (isDevelopment) {
     })
 
     // run loop to automate transactions
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 20; i++) {
         if (i % 3 === 0) {
             walletAction();
             walletFooAction();

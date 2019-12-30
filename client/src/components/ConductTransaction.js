@@ -9,6 +9,16 @@ class ConductTransaction extends Component {
     state = {
         recipient: '',
         amount: 0,
+        knownAddresses: [],
+    }
+
+    componentDidMount() {
+       
+        fetch(`${document.location.origin}/api/known-addresses`)
+        .then(response => response.json())
+        .then(json => this.setState({
+            knownAddresses: json
+        }))
     }
 
     updateRecipient = event => {
@@ -46,6 +56,8 @@ class ConductTransaction extends Component {
             <div className='ConductTransaction'>
                 <Link to='/'>Go Home</Link>
                 <h3>Conduct a new transaction</h3>
+                <br />
+                
                 <FormGroup>
                     <FormControl input='text' placeholder='recipient' value={this.state.recipient} onChange={this.updateRecipient} />
                 </FormGroup>
@@ -53,6 +65,21 @@ class ConductTransaction extends Component {
                     <FormControl input='number' placeholder='amount' value={this.state.amount} onChange={this.updateAmount} />
                 </FormGroup>
                 <Button bsStyle='danger' onClick={this.conductTransaction}>Submit Transaction</Button>
+                <br />
+                <br />
+                <h4>Note - Known addresses</h4>
+                <br />
+                {
+                    this.state.knownAddresses.map(knownAddress => {
+                        return (
+                            <div key={knownAddress}>
+                                <div>{knownAddress}</div>
+                                <br />
+                            </div>
+                        )
+                    })
+                }
+                
             </div>
         )
     }

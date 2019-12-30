@@ -54846,6 +54846,8 @@ exports.default = void 0;
 
 var _react = _interopRequireWildcard(require("react"));
 
+var _reactBootstrap = require("react-bootstrap");
+
 var _Block = _interopRequireDefault(require("./Block"));
 
 var _reactRouterDom = require("react-router-dom");
@@ -54857,6 +54859,14 @@ function _getRequireWildcardCache() { if (typeof WeakMap !== "function") return 
 function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj; } if (obj === null || typeof obj !== "object" && typeof obj !== "function") { return { default: obj }; } var cache = _getRequireWildcardCache(); if (cache && cache.has(obj)) { return cache.get(obj); } var newObj = {}; var hasPropertyDescriptor = Object.defineProperty && Object.getOwnPropertyDescriptor; for (var key in obj) { if (Object.prototype.hasOwnProperty.call(obj, key)) { var desc = hasPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : null; if (desc && (desc.get || desc.set)) { Object.defineProperty(newObj, key, desc); } else { newObj[key] = obj[key]; } } } newObj.default = obj; if (cache) { cache.set(obj, newObj); } return newObj; }
 
 function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
+
+function _toConsumableArray(arr) { return _arrayWithoutHoles(arr) || _iterableToArray(arr) || _nonIterableSpread(); }
+
+function _nonIterableSpread() { throw new TypeError("Invalid attempt to spread non-iterable instance"); }
+
+function _iterableToArray(iter) { if (Symbol.iterator in Object(iter) || Object.prototype.toString.call(iter) === "[object Arguments]") return Array.from(iter); }
+
+function _arrayWithoutHoles(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = new Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
@@ -54893,7 +54903,19 @@ function (_Component) {
     }
 
     return _possibleConstructorReturn(_this, (_temp = _this = _possibleConstructorReturn(this, (_getPrototypeOf2 = _getPrototypeOf(Blocks)).call.apply(_getPrototypeOf2, [this].concat(args))), _this.state = {
-      blocks: []
+      blocks: [],
+      paginatedId: 1,
+      blocksLength: 0
+    }, _this.fetchPaginatedBlocks = function (paginatedId) {
+      return function () {
+        fetch("".concat(document.location.origin, "/api/blocks/").concat(paginatedId)).then(function (response) {
+          response.json().then(function (json) {
+            _this.setState({
+              blocks: json
+            });
+          });
+        });
+      };
     }, _temp));
   }
 
@@ -54902,21 +54924,33 @@ function (_Component) {
     value: function componentDidMount() {
       var _this2 = this;
 
-      fetch("".concat(document.location.origin, "/api/blocks")).then(function (response) {
+      fetch("".concat(document.location.origin, "/api/blocks/length")).then(function (response) {
         response.json().then(function (json) {
           _this2.setState({
-            blocks: json
+            blocksLength: json
           });
         });
       });
+      this.fetchPaginatedBlocks(this.state.paginatedId)();
     }
   }, {
     key: "render",
     value: function render() {
+      var _this3 = this;
+
       console.log('this.state', this.state);
       return _react.default.createElement("div", null, _react.default.createElement("div", null, _react.default.createElement(_reactRouterDom.Link, {
         to: "/"
-      }, "Go Home")), _react.default.createElement("h3", null, "Blocks"), this.state.blocks.map(function (block) {
+      }, "Go Home")), _react.default.createElement("h3", null, "Blocks"), _react.default.createElement("div", null, _toConsumableArray(Array(Math.ceil(this.state.blocksLength / 5)).keys()).map(function (key) {
+        var paginatedId = key + 1;
+        return _react.default.createElement("span", {
+          key: key,
+          onClick: _this3.fetchPaginatedBlocks(paginatedId)
+        }, _react.default.createElement(_reactBootstrap.Button, {
+          bsSize: "small",
+          bsStyle: "danger"
+        }, paginatedId), ' ');
+      })), this.state.blocks.map(function (block) {
         return (// send block down as a prop to Block component
           _react.default.createElement(_Block.default, {
             key: block.hash,
@@ -54932,7 +54966,7 @@ function (_Component) {
 
 var _default = Blocks;
 exports.default = _default;
-},{"react":"../../node_modules/react/index.js","./Block":"components/Block.js","react-router-dom":"../../node_modules/react-router-dom/es/index.js"}],"components/ConductTransaction.js":[function(require,module,exports) {
+},{"react":"../../node_modules/react/index.js","react-bootstrap":"../../node_modules/react-bootstrap/es/index.js","./Block":"components/Block.js","react-router-dom":"../../node_modules/react-router-dom/es/index.js"}],"components/ConductTransaction.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -54992,7 +55026,8 @@ function (_Component) {
 
     return _possibleConstructorReturn(_this, (_temp = _this = _possibleConstructorReturn(this, (_getPrototypeOf2 = _getPrototypeOf(ConductTransaction)).call.apply(_getPrototypeOf2, [this].concat(args))), _this.state = {
       recipient: '',
-      amount: 0
+      amount: 0,
+      knownAddresses: []
     }, _this.updateRecipient = function (event) {
       //as user types track it using the method on any event
       _this.setState({
@@ -55029,13 +55064,26 @@ function (_Component) {
 
 
   _createClass(ConductTransaction, [{
+    key: "componentDidMount",
+    value: function componentDidMount() {
+      var _this2 = this;
+
+      fetch("".concat(document.location.origin, "/api/known-addresses")).then(function (response) {
+        return response.json();
+      }).then(function (json) {
+        return _this2.setState({
+          knownAddresses: json
+        });
+      });
+    }
+  }, {
     key: "render",
     value: function render() {
       return _react.default.createElement("div", {
         className: "ConductTransaction"
       }, _react.default.createElement(_reactRouterDom.Link, {
         to: "/"
-      }, "Go Home"), _react.default.createElement("h3", null, "Conduct a new transaction"), _react.default.createElement(_reactBootstrap.FormGroup, null, _react.default.createElement(_reactBootstrap.FormControl, {
+      }, "Go Home"), _react.default.createElement("h3", null, "Conduct a new transaction"), _react.default.createElement("br", null), _react.default.createElement(_reactBootstrap.FormGroup, null, _react.default.createElement(_reactBootstrap.FormControl, {
         input: "text",
         placeholder: "recipient",
         value: this.state.recipient,
@@ -55048,7 +55096,11 @@ function (_Component) {
       })), _react.default.createElement(_reactBootstrap.Button, {
         bsStyle: "danger",
         onClick: this.conductTransaction
-      }, "Submit Transaction"));
+      }, "Submit Transaction"), _react.default.createElement("br", null), _react.default.createElement("br", null), _react.default.createElement("h4", null, "Note - Known addresses"), _react.default.createElement("br", null), this.state.knownAddresses.map(function (knownAddress) {
+        return _react.default.createElement("div", {
+          key: knownAddress
+        }, _react.default.createElement("div", null, knownAddress), _react.default.createElement("br", null));
+      }));
     }
   }]);
 
@@ -55437,7 +55489,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "58951" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "61729" + '/');
 
   ws.onmessage = function (event) {
     var data = JSON.parse(event.data);
